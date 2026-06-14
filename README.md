@@ -9,8 +9,8 @@ amounts, credit vouchers as **positive**.
 
 | Concern      | Choice                                                |
 |--------------|-------------------------------------------------------|
-| Language     | Java 21 (LTS)                                         |
-| Framework    | Spring Boot 3.5.x                                     |
+| Language     | Java 23 (LTS)                                         |
+| Framework    | Spring Boot 4.x                                     |
 | Build        | Maven (via wrapper — no local Maven install needed)   |
 | Persistence  | Spring Data JPA / Hibernate                           |
 | Migrations   | Flyway                                                |
