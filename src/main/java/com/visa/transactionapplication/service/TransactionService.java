@@ -11,6 +11,7 @@ import com.visa.transactionapplication.repository.OperationTypeRepository;
 import com.visa.transactionapplication.repository.TransactionRepository;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,15 +44,38 @@ public class TransactionService {
         Transaction transaction = new Transaction();
         transaction.setAccount(account);
         transaction.setOperationType(operationType);
-        transaction.setAmount(applySign(operationType, request.amount()));
+        transaction.setAmount(calculateAmount(operationType, request.amount()));
+        transaction.setBalance(calculateBalance(operationType, request.amount(), request.accountId()));
         transaction.setEventDate(Instant.now());
 
         Transaction saved = transactionRepository.save(transaction);
         return toResponse(saved);
     }
 
-    private BigDecimal applySign(OperationType operationType, BigDecimal amount) {
+    private BigDecimal calculateAmount(OperationType operationType, BigDecimal amount) {
         return operationType.isRequiresNegative() ? amount.negate() : amount.abs();
+    }
+
+    private BigDecimal calculateBalance(OperationType operationType, BigDecimal amount, Long accountId) {
+        boolean isDebit = operationType.isRequiresNegative();
+        if (isDebit) {
+            return amount.negate();
+        }
+        // discharge the debits
+        List<Transaction> transactionList = transactionRepository.findAllPendingTransactions(accountId);
+        BigDecimal creditAmount = amount;
+        for (Transaction transaction : transactionList) {
+            BigDecimal balance = transaction.getBalance();
+            if (creditAmount.compareTo(BigDecimal.ZERO) == 0) {
+                break;
+            }
+            BigDecimal dischargeAmount = creditAmount.min(balance.negate());
+            creditAmount = creditAmount.subtract(dischargeAmount);
+            balance = balance.add(dischargeAmount);
+            transaction.setBalance(balance);
+            transactionRepository.save(transaction);
+        }
+        return creditAmount;
     }
 
     private TransactionResponse toResponse(Transaction transaction) {
